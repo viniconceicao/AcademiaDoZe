@@ -1,4 +1,5 @@
-﻿// Aluno: Vinicius de Liz da Conceição
+﻿
+// Aluno: Vinicius de Liz da Conceição
 
 using AcademiaDoZe.Domain.Entities;
 using AcademiaDoZe.Domain.Repositories;
@@ -22,19 +23,38 @@ namespace AcademiaDoZe.Infrastructure.Repositories
             var logradouro = await logradouroRepo.ObterPorId(logradouroId)
                               ?? throw new InvalidOperationException($"Logradouro {logradouroId} não encontrado.");
 
+            // Foto segura
+            Arquivo? foto = null;
+            try
+            {
+                if (reader["foto"] is byte[] bytes && bytes.Length > 0)
+                {
+                    try
+                    {
+                        foto = Arquivo.Criar(bytes, "jpg");
+                    }
+                    catch
+                    {
+                        foto = null;
+                    }
+                }
+            }
+            catch
+            {
+                foto = null;
+            }
+
             var aluno = Aluno.Criar(
                 nome: reader["nome"].ToString()!,
                 cpf: reader["cpf"].ToString()!,
                 dataNascimento: DateOnly.FromDateTime(Convert.ToDateTime(reader["nascimento"])),
                 telefone: reader["telefone"].ToString()!,
-                // email é opcional na tabela
                 email: reader["email"] is DBNull ? string.Empty : reader["email"].ToString()!,
                 endereco: logradouro,
                 numero: reader["numero"].ToString()!,
                 complemento: reader["complemento"] is DBNull ? null : reader["complemento"].ToString(),
                 senha: reader["senha"].ToString()!,
-                // foto é uma única coluna varbinary(MAX)
-                foto: reader["foto"] is DBNull ? null : Arquivo.Criar((byte[])reader["foto"], "jpg")
+                foto: foto
             );
 
             typeof(Entity).GetProperty("Id")?.SetValue(aluno, Convert.ToInt32(reader["id_aluno"]));

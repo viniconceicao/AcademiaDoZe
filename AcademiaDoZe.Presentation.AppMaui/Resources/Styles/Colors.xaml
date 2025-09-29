@@ -42,4 +42,26 @@
     <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
     <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
     <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
+
+    <!-- Novas cores personalizadas -->
+    <Color x:Key="AccentOrange">#F59E0B</Color>
+    <!-- Laranja destaque da logo -->
+    <Color x:Key="AccentOrangeDark">#C2410C</Color>
+    <!-- Laranja escuro para hover/press -->
+    <Color x:Key="AccentYellow">#FACC15</Color>
+    <!-- Amarelo vivo para alertas -->
+    <Color x:Key="SuccessGreen">#16A34A</Color>
+    <!-- Verde para sucesso -->
+    <Color x:Key="ErrorRed">#DC2626</Color>
+    <!-- Vermelho para erros/alertas -->
+    <Color x:Key="InfoBlue">#2563EB</Color>
+    <!-- Azul para informações -->
+
+    <!-- Brushes para as novas cores -->
+    <SolidColorBrush x:Key="AccentOrangeBrush" Color="{StaticResource AccentOrange}" />
+    <SolidColorBrush x:Key="AccentOrangeDarkBrush" Color="{StaticResource AccentOrangeDark}" />
+    <SolidColorBrush x:Key="AccentYellowBrush" Color="{StaticResource AccentYellow}" />
+    <SolidColorBrush x:Key="SuccessGreenBrush" Color="{StaticResource SuccessGreen}" />
+    <SolidColorBrush x:Key="ErrorRedBrush" Color="{StaticResource ErrorRed}" />
+    <SolidColorBrush x:Key="InfoBlueBrush" Color="{StaticResource InfoBlue}" />
 </ResourceDictionary>
