@@ -11,5 +11,3 @@ namespace AcademiaDoZe.Presentation.AppMaui.Converters
         => throw new NotSupportedException();
     }
 }
-
-// Estou no slide 21

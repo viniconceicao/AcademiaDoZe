@@ -99,22 +99,27 @@ namespace AcademiaDoZe.Infrastructure.Repositories
             try
             {
                 await using var connection = await GetOpenConnectionAsync();
-                string query = $"UPDATE {TableName} "
-                    + "SET cpf = @Cpf, "
-                    + "telefone = @Telefone, "
-                    + "nome = @Nome, "
-                    + "nascimento = @Nascimento, "
-                    + "email = @Email, "
-                    + "logradouro_id = @LogradouroId, "
-                    + "numero = @Numero, "
-                    + "complemento = @Complemento, "
-                    + "senha = @Senha, "
-                    + "foto = @Foto, "
-                    + "admissao = @Admissao, "
-                    + "tipo = @Tipo, "
-                    + "vinculo = @Vinculo "
-                    + "WHERE id_colaborador = @Id";
+                
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Repository.Atualizar - Iniciando atualização do ID: {entity.Id}");
+
+                string query = $@"UPDATE {TableName} 
+                    SET cpf = @Cpf,
+                        telefone = @Telefone,
+                        nome = @Nome,
+                        nascimento = @Nascimento,
+                        email = @Email,
+                        logradouro_id = @LogradouroId,
+                        numero = @Numero,
+                        complemento = @Complemento,
+                        senha = @Senha,
+                        foto = @Foto,
+                        admissao = @Admissao,
+                        tipo = @Tipo,
+                        vinculo = @Vinculo
+                    WHERE id_colaborador = @Id";
+
                 await using var command = DbProvider.CreateCommand(query, connection);
+
                 command.Parameters.Add(DbProvider.CreateParameter("@Id", entity.Id, DbType.Int32, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Cpf", entity.Cpf, DbType.String, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Telefone", entity.Telefone, DbType.String, _databaseType));
@@ -123,22 +128,31 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 command.Parameters.Add(DbProvider.CreateParameter("@Email", entity.Email, DbType.String, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@LogradouroId", entity.Endereco.Id, DbType.Int32, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Numero", entity.Numero, DbType.String, _databaseType));
-                command.Parameters.Add(DbProvider.CreateParameter("@Complemento", entity.Complemento != null ? (object)entity.Complemento : DBNull.Value, DbType.String, _databaseType));
+                command.Parameters.Add(DbProvider.CreateParameter("@Complemento", 
+                    entity.Complemento != null ? (object)entity.Complemento : DBNull.Value, 
+                    DbType.String, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Senha", entity.Senha, DbType.String, _databaseType));
-                command.Parameters.Add(DbProvider.CreateParameter("@Foto", entity.Foto != null ? (object)entity.Foto.Conteudo : DBNull.Value, DbType.Binary, _databaseType));
+                command.Parameters.Add(DbProvider.CreateParameter("@Foto", 
+                    entity.Foto?.Conteudo != null ? (object)entity.Foto.Conteudo : DBNull.Value, 
+                    DbType.Binary, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Admissao", entity.DataAdmissao, DbType.Date, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Tipo", (int)entity.Tipo, DbType.Int32, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@Vinculo", (int)entity.Vinculo, DbType.Int32, _databaseType));
+
                 int rowsAffected = await command.ExecuteNonQueryAsync();
+                
                 if (rowsAffected == 0)
                 {
-                    return null!;
+                    throw new InvalidOperationException($"Colaborador ID {entity.Id} não encontrado.");
                 }
-                return entity;
+
+                // Retorna o colaborador atualizado
+                return await ObterPorId(entity.Id) ?? throw new InvalidOperationException("Erro ao recuperar colaborador após atualização");
             }
-            catch (DbException ex)
+            catch (Exception ex)
             {
-                throw new InvalidOperationException($"Erro ao atualizar colaborador com ID {entity.Id}: {ex.Message}", ex);
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Repository.Atualizar - {ex.Message}");
+                throw;
             }
         }
         public async Task<bool> CpfJaExiste(string cpf, int? id = null)

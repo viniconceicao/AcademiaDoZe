@@ -10,7 +10,7 @@ namespace AcademiaDoZe.Application.Mappings
         {
             return new ColaboradorDTO
             {
-                Id = colaborador.Id,
+                Id = colaborador.Id, // Mantém o ID original
                 Nome = colaborador.Nome,
                 Cpf = colaborador.Cpf,
                 DataNascimento = colaborador.DataNascimento,
@@ -20,35 +20,55 @@ namespace AcademiaDoZe.Application.Mappings
                 Numero = colaborador.Numero,
                 Complemento = colaborador.Complemento,
                 Senha = null, // A senha não deve ser exposta no DTO
-                Foto = colaborador.Foto != null ? new ArquivoDTO { Conteudo = colaborador.Foto.Conteudo } : null, // Mapeia a foto para DTO
+                Foto = colaborador.Foto != null ? new ArquivoDTO { Conteudo = colaborador.Foto.Conteudo, ContentType = ".jpg" } : null,
                 DataAdmissao = colaborador.DataAdmissao,
                 Tipo = colaborador.Tipo.ToApp(),
                 Vinculo = colaborador.Vinculo.ToApp()
             };
         }
+
         public static Colaborador ToEntity(this ColaboradorDTO colaboradorDto)
         {
-            return Colaborador.Criar(
-            colaboradorDto.Nome,
-            colaboradorDto.Cpf,
-            colaboradorDto.DataNascimento,
-            colaboradorDto.Telefone,
-            colaboradorDto.Email!,
-            colaboradorDto.Endereco.ToEntity(), // Mapeia o logradouro do DTO para a entidade
-            colaboradorDto.Numero,
-            colaboradorDto.Complemento!,
-            colaboradorDto.Senha!,
-            (colaboradorDto.Foto?.Conteudo != null && !string.IsNullOrEmpty(colaboradorDto.Foto.ContentType))
-                ? Arquivo.Criar(colaboradorDto.Foto.Conteudo, colaboradorDto.Foto.ContentType)
-                : null!, // Mapeia a foto do DTO para a entidade
-            colaboradorDto.DataAdmissao,
-            colaboradorDto.Tipo.ToDomain(),
-            colaboradorDto.Vinculo.ToDomain()
+            var colaborador = Colaborador.Criar(
+                colaboradorDto.Nome,
+                colaboradorDto.Cpf,
+                colaboradorDto.DataNascimento,
+                colaboradorDto.Telefone,
+                colaboradorDto.Email!,
+                colaboradorDto.Endereco.ToEntity(),
+                colaboradorDto.Numero,
+                colaboradorDto.Complemento!,
+                colaboradorDto.Senha!,
+                colaboradorDto.Foto?.Conteudo != null 
+                    ? Arquivo.Criar(
+                        colaboradorDto.Foto.Conteudo,
+                        colaboradorDto.Foto.ContentType ?? ".jpg"
+                      )
+                    : null!,
+                colaboradorDto.DataAdmissao,
+                colaboradorDto.Tipo.ToDomain(),
+                colaboradorDto.Vinculo.ToDomain()
             );
+
+            // Define o ID usando reflection
+            var idProperty = typeof(Entity).GetProperty("Id");
+            idProperty?.SetValue(colaborador, colaboradorDto.Id);
+
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] ToEntity - ID definido: {colaborador.Id}");
+            return colaborador;
         }
+
         public static Colaborador UpdateFromDto(this Colaborador colaborador, ColaboradorDTO colaboradorDto)
         {
-            return Colaborador.Criar(
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] UpdateFromDto - ID Original: {colaborador.Id}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] UpdateFromDto - ID do DTO: {colaboradorDto.Id}");
+
+            // Se tiver uma nova foto, usa ela, senão mantém a atual
+            var novaFoto = colaboradorDto.Foto?.Conteudo != null
+                ? Arquivo.Criar(colaboradorDto.Foto.Conteudo, ".jpg")
+                : colaborador.Foto;
+
+            var updated = Colaborador.Criar(
                 colaboradorDto.Nome ?? colaborador.Nome,
                 colaborador.Cpf, // CPF não pode ser alterado
                 colaboradorDto.DataNascimento != default ? colaboradorDto.DataNascimento : colaborador.DataNascimento,
@@ -58,13 +78,18 @@ namespace AcademiaDoZe.Application.Mappings
                 colaboradorDto.Numero ?? colaborador.Numero,
                 colaboradorDto.Complemento ?? colaborador.Complemento,
                 colaboradorDto.Senha ?? colaborador.Senha,
-                (colaboradorDto.Foto?.Conteudo != null && !string.IsNullOrEmpty(colaboradorDto.Foto.ContentType))
-                    ? Arquivo.Criar(colaboradorDto.Foto.Conteudo, colaboradorDto.Foto.ContentType)
-                    : colaborador.Foto, // Atualiza a foto se fornecida
+                novaFoto,
                 colaboradorDto.DataAdmissao != default ? colaboradorDto.DataAdmissao : colaborador.DataAdmissao,
                 colaboradorDto.Tipo != default ? colaboradorDto.Tipo.ToDomain() : colaborador.Tipo,
                 colaboradorDto.Vinculo != default ? colaboradorDto.Vinculo.ToDomain() : colaborador.Vinculo
             );
+
+            // Define o ID usando reflection - mantém o ID original
+            var idProperty = typeof(Entity).GetProperty("Id");
+            idProperty?.SetValue(updated, colaborador.Id);
+
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] UpdateFromDto - ID Final: {updated.Id}");
+            return updated;
         }
     }
 }

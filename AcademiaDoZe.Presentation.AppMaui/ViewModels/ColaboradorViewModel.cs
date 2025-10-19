@@ -32,7 +32,18 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
         public int ColaboradorId
         {
             get => _colaboradorId;
-            set => SetProperty(ref _colaboradorId, value);
+            set
+            {
+                if (SetProperty(ref _colaboradorId, value))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] ColaboradorId alterado para: {value}");
+                    if (Colaborador != null)
+                    {
+                        Colaborador.Id = value;
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG] Colaborador.Id atualizado para: {Colaborador.Id}");
+                    }
+                }
+            }
         }
         private bool _isEditMode;
         public bool IsEditMode
@@ -46,7 +57,6 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
             _logradouroService = logradouroService;
             Title = "Detalhes do Colaborador";
         }
-
         [RelayCommand]
         private async Task CancelAsync()
         {
@@ -94,41 +104,61 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
         [RelayCommand]
         public async Task SaveColaboradorAsync()
         {
-            if (IsBusy)
-                return;
-            if (!ValidateColaborador(Colaborador))
-                return;
+            if (IsBusy) return;
+            if (!ValidateColaborador(Colaborador)) return;
+
             try
             {
                 IsBusy = true;
-                // Verifica se o CEP existe antes de continuar
 
-                var logradouroData = await _logradouroService.ObterPorCepAsync(Colaborador.Endereco.Cep);
-                if (logradouroData == null)
+                // Debug logs
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SaveColaborador - Início");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SaveColaborador - IsEditMode: {IsEditMode}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SaveColaborador - ColaboradorId: {ColaboradorId}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SaveColaborador - Colaborador.Id antes: {Colaborador.Id}");
 
-                {
-                    await Shell.Current.DisplayAlert("Erro", "O CEP informado não existe. O cadastro não pode continuar.", "OK");
-                    return;
-                }
-                Colaborador.Endereco = logradouroData;
+                // Garantir que o ID está correto para edição
                 if (IsEditMode)
                 {
-                    await _colaboradorService.AtualizarAsync(Colaborador);
+                    Colaborador.Id = ColaboradorId;
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] SaveColaborador - Colaborador.Id depois: {Colaborador.Id}");
+                }
 
-                    await Shell.Current.DisplayAlert("Sucesso", "Colaborador atualizado com sucesso!", "OK");
+                // Validar e buscar logradouro
+                var logradouroData = await _logradouroService.ObterPorCepAsync(Colaborador.Endereco.Cep);
+                if (logradouroData == null)
+                {
+                    await Shell.Current.DisplayAlert("Erro", "O CEP informado não existe.", "OK");
+                    return;
+                }
 
+                // Atualizar o logradouro
+                Colaborador.Endereco = logradouroData;
+
+                if (IsEditMode)
+                {
+                    var atualizado = await _colaboradorService.AtualizarAsync(Colaborador);
+                    if (atualizado != null)
+                    {
+                        Colaborador = atualizado;
+                        await Shell.Current.DisplayAlert("Sucesso", "Colaborador atualizado com sucesso!", "OK");
+                        await Shell.Current.GoToAsync("..");
+                    }
                 }
                 else
                 {
-                    await _colaboradorService.AdicionarAsync(Colaborador);
-
-                    await Shell.Current.DisplayAlert("Sucesso", "Colaborador criado com sucesso!", "OK");
-
+                    var criado = await _colaboradorService.AdicionarAsync(Colaborador);
+                    if (criado != null)
+                    {
+                        Colaborador = criado;
+                        await Shell.Current.DisplayAlert("Sucesso", "Colaborador criado com sucesso!", "OK");
+                        await Shell.Current.GoToAsync("..");
+                    }
                 }
-                await Shell.Current.GoToAsync("..");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] SaveColaborador - {ex.Message}");
                 await Shell.Current.DisplayAlert("Erro", $"Erro ao salvar colaborador: {ex.Message}", "OK");
             }
             finally
@@ -282,5 +312,3 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
         }
     }
 }
-
-// Slide 38
