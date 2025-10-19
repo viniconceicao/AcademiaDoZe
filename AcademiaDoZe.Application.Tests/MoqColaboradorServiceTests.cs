@@ -178,38 +178,41 @@ CriarColaboradorPadrao(2)
         public async Task ObterPorCpfAsync_DeveRetornarColaborador_QuandoExistir()
         {
             // Arrange
-
             var cpf = "12345678901";
             var colaboradorDto = CriarColaboradorPadrao(1);
-
             colaboradorDto.Cpf = cpf;
-            _colaboradorServiceMock.Setup(s => s.ObterPorCpfAsync(cpf)).ReturnsAsync(colaboradorDto);
-            // Act
+            var colaboradores = new List<ColaboradorDTO> { colaboradorDto };
 
+            _colaboradorServiceMock
+                .Setup(s => s.ObterPorCpfAsync(cpf))
+                .ReturnsAsync(colaboradores);
+
+            // Act
             var result = await _colaboradorService.ObterPorCpfAsync(cpf);
 
             // Assert
-
             Assert.NotNull(result);
-            Assert.Equal(cpf, result.Cpf);
+            var resultList = result.ToList();
+            Assert.Single(resultList);
+            Assert.Equal(cpf, resultList[0].Cpf);
 
             _colaboradorServiceMock.Verify(s => s.ObterPorCpfAsync(cpf), Times.Once);
         }
         [Fact]
-        public async Task ObterPorCpfAsync_DeveRetornarNull_QuandoNaoExistir()
+        public async Task ObterPorCpfAsync_DeveRetornarListaVazia_QuandoNaoExistir()
         {
             // Arrange
-
             var cpf = "99999999999";
+            _colaboradorServiceMock
+                .Setup(s => s.ObterPorCpfAsync(cpf))
+                .ReturnsAsync(Enumerable.Empty<ColaboradorDTO>());
 
-            _colaboradorServiceMock.Setup(s => s.ObterPorCpfAsync(cpf)).ReturnsAsync((ColaboradorDTO)null!);
             // Act
-
             var result = await _colaboradorService.ObterPorCpfAsync(cpf);
 
             // Assert
-
-            Assert.Null(result);
+            Assert.NotNull(result);
+            Assert.Empty(result);
 
             _colaboradorServiceMock.Verify(s => s.ObterPorCpfAsync(cpf), Times.Once);
         }

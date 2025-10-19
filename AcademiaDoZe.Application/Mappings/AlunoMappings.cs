@@ -16,11 +16,15 @@ namespace AcademiaDoZe.Application.Mappings
                 DataNascimento = aluno.DataNascimento,
                 Telefone = aluno.Telefone,
                 Email = aluno.Email,
-                Endereco = aluno.Endereco.ToDto(), // Mapeia o logradouro para DTO
+                Endereco = aluno.Endereco.ToDto(),
                 Numero = aluno.Numero,
                 Complemento = aluno.Complemento,
                 Senha = null, // a senha não deve ser exposta no DTO
-                Foto = aluno.Foto != null ? new ArquivoDTO { Conteudo = aluno.Foto.Conteudo } : null // Mapeia a foto para DTO
+                Foto = aluno.Foto != null ? new ArquivoDTO 
+                { 
+                    Conteudo = aluno.Foto.Conteudo,
+                    ContentType = ".jpg"  // Adiciona o ContentType padrão
+                } : null
             };
         }
         public static Aluno ToEntity(this AlunoDTO alunoDto)
@@ -35,8 +39,11 @@ namespace AcademiaDoZe.Application.Mappings
                 alunoDto.Numero,
                 alunoDto.Complemento!,
                 alunoDto.Senha!,
-                (alunoDto.Foto?.Conteudo != null && alunoDto.Foto.ContentType != null)
-                    ? Arquivo.Criar(alunoDto.Foto.Conteudo, alunoDto.Foto.ContentType)
+                alunoDto.Foto?.Conteudo != null 
+                    ? Arquivo.Criar(
+                        alunoDto.Foto.Conteudo,
+                        alunoDto.Foto.ContentType ?? ".jpg"
+                      )
                     : null!
             );
         }
@@ -66,7 +73,12 @@ namespace AcademiaDoZe.Application.Mappings
         }
         public static Aluno UpdateFromDto(this Aluno aluno, AlunoDTO alunoDto)
         {
-            return Aluno.Criar(
+            // Se tiver uma nova foto, usa ela, senão mantém a atual
+            var novaFoto = alunoDto.Foto?.Conteudo != null
+                ? Arquivo.Criar(alunoDto.Foto.Conteudo, alunoDto.Foto.ContentType ?? ".jpg")
+                : aluno.Foto;
+
+            var updated = Aluno.Criar(
                 alunoDto.Nome ?? aluno.Nome,
                 aluno.Cpf, // CPF não pode ser alterado
                 alunoDto.DataNascimento != default ? alunoDto.DataNascimento : aluno.DataNascimento,
@@ -76,10 +88,14 @@ namespace AcademiaDoZe.Application.Mappings
                 alunoDto.Numero ?? aluno.Numero,
                 alunoDto.Complemento ?? aluno.Complemento,
                 alunoDto.Senha ?? aluno.Senha,
-                (alunoDto.Foto?.Conteudo != null && alunoDto.Foto?.ContentType != null)
-                    ? Arquivo.Criar(alunoDto.Foto.Conteudo, alunoDto.Foto.ContentType)
-                    : aluno.Foto // Atualiza a foto se fornecida
+                novaFoto
             );
+
+            // Mantém o ID original usando reflection
+            var idProperty = typeof(Entity).GetProperty("Id");
+            idProperty?.SetValue(updated, aluno.Id);
+
+            return updated;
         }
     }
 }

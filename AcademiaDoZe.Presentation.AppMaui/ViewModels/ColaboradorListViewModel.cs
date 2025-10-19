@@ -86,31 +86,29 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
                 {
                     Colaboradores.Clear();
                 });
-                IEnumerable<ColaboradorDTO> resultados = Enumerable.Empty<ColaboradorDTO>();
+                IEnumerable<ColaboradorDTO> resultados = [];
                 // Busca os colaboradores de acordo com o filtro
                 if (string.IsNullOrWhiteSpace(SearchText))
 
                 {
-                    resultados = await _colaboradorService.ObterTodosAsync() ?? Enumerable.Empty<ColaboradorDTO>();
+                    resultados = await _colaboradorService.ObterTodosAsync() ?? [];
                 }
                 else if (SelectedFilterType == "Id" && int.TryParse(SearchText, out int id))
                 {
                     var colaborador = await _colaboradorService.ObterPorIdAsync(id);
 
                     if (colaborador != null)
-
-                        resultados = new[] { colaborador };
+                        resultados = [colaborador];
                 }
                 else if (SelectedFilterType == "CPF")
                 {
-                    var colaborador = await _colaboradorService.ObterPorCpfAsync(SearchText);
+                    // ObterPorCpfAsync agora retorna IEnumerable<ColaboradorDTO>
 
-                    if (colaborador != null)
+                    var colaboradores = await _colaboradorService.ObterPorCpfAsync(SearchText) ?? Enumerable.Empty<ColaboradorDTO>();
 
-                        resultados = new[] { colaborador };
+                    resultados = colaboradores;
                 }
                 // Atualiza a coleção na thread principal
-
                 await MainThread.InvokeOnMainThreadAsync(() =>
 
                 {
@@ -121,16 +119,9 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
                     OnPropertyChanged(nameof(Colaboradores));
                 });
             }
-            catch (Exception ex)
-            {
-                await Shell.Current.DisplayAlert("Erro", $"Erro ao buscar colaboradores: {ex.Message}", "OK");
-            }
-            finally
-            {
-                IsBusy = false;
-            }
+            catch (Exception ex) { await Shell.Current.DisplayAlert("Erro", $"Erro ao buscar colaboradores: {ex.Message}", "OK"); }
+            finally { IsBusy = false; }
         }
-
         [RelayCommand]
         private async Task LoadColaboradoresAsync()
         {

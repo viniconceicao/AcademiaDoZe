@@ -81,18 +81,30 @@ namespace AcademiaDoZe.Infrastructure.Repositories
             }
             catch (DbException ex) { throw new InvalidOperationException($"Erro ao adicionar colaborador: {ex.Message}", ex); }
         }
-        public async Task<Colaborador?> ObterPorCpf(string cpf)
+        public async Task<IEnumerable<Colaborador>> ObterPorCpf(string cpfPrefix)
         {
             try
             {
                 await using var connection = await GetOpenConnectionAsync();
-                string query = $"SELECT * FROM {TableName} WHERE cpf = @Cpf";
+                string query = $"SELECT * FROM {TableName} WHERE cpf LIKE @CpfPrefix";
                 await using var command = DbProvider.CreateCommand(query, connection);
-                command.Parameters.Add(DbProvider.CreateParameter("@Cpf", cpf, DbType.String, _databaseType));
-                using var reader = await command.ExecuteReaderAsync();
-                return await reader.ReadAsync() ? await MapAsync(reader) : null;
+                // parâmetro com sufixo '%' para buscar por prefixo
+
+                var parameterValue = (cpfPrefix ?? string.Empty).Trim() + "%";
+
+                command.Parameters.Add(DbProvider.CreateParameter("@CpfPrefix", parameterValue, DbType.String, _databaseType));
+                await using var reader = await command.ExecuteReaderAsync();
+                var colaboradores = new List<Colaborador>();
+                while (await reader.ReadAsync())
+                {
+                    colaboradores.Add(await MapAsync(reader));
+                }
+                return colaboradores;
             }
-            catch (DbException ex) { throw new InvalidOperationException($"Erro ao obter colaborador pelo CPF {cpf}: {ex.Message}", ex); }
+            catch (DbException ex)
+            {
+                throw new InvalidOperationException($"Erro ao obter colaborador(s) pelo CPF '{cpfPrefix}': {ex.Message}", ex);
+            }
         }
         public override async Task<Colaborador> Atualizar(Colaborador entity)
         {

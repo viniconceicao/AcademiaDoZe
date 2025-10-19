@@ -1,5 +1,4 @@
-﻿
-// Aluno: Vinicius de Liz da Conceição
+﻿// Aluno: Vinicius de Liz da Conceição
 
 using AcademiaDoZe.Domain.Entities;
 using AcademiaDoZe.Domain.Repositories;
@@ -15,6 +14,40 @@ namespace AcademiaDoZe.Infrastructure.Repositories
         public AlunoRepository(string connectionString, DatabaseType databaseType)
             : base(connectionString, databaseType) { }
 
+        public override async Task<IEnumerable<Aluno>> ObterTodos()
+        {
+            await using var connection = await GetOpenConnectionAsync();
+            string query = $@"SELECT id_aluno, nome, cpf, nascimento, email, telefone, 
+                             logradouro_id, numero, complemento, senha, foto
+                             FROM {TableName}";
+
+            await using var command = DbProvider.CreateCommand(query, connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            var alunos = new List<Aluno>();
+            while (await reader.ReadAsync())
+            {
+                try
+                {
+                    var aluno = await MapAsync(reader);
+                    alunos.Add(aluno);
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("idade mínima"))
+                {
+                    // Log o ID do aluno que foi ignorado
+                    var alunoId = Convert.ToInt32(reader["id_aluno"]);
+                    System.Diagnostics.Debug.WriteLine($"[WARN] Aluno ID {alunoId} ignorado: idade inferior a 12 anos");
+                    continue; // Pula para o próximo registro
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ERROR] Erro ao mapear aluno: {ex.Message}");
+                    continue; // Pula para o próximo registro
+                }
+            }
+            return alunos;
+        }
+
         protected override async Task<Aluno> MapAsync(DbDataReader reader)
         {
             // Busca o logradouro pelo ID (foreign key)
@@ -27,32 +60,39 @@ namespace AcademiaDoZe.Infrastructure.Repositories
             Arquivo? foto = null;
             try
             {
-                if (reader["foto"] is byte[] bytes && bytes.Length > 0)
+                if (reader["foto"] is DBNull == false)
                 {
-                    try
-                    {
-                        foto = Arquivo.Criar(bytes, "jpg");
-                    }
-                    catch
-                    {
-                        foto = null;
-                    }
+                    foto = Arquivo.Criar((byte[])reader["foto"], ".jpg");
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Erro ao mapear foto: {ex.Message}");
                 foto = null;
+            }
+
+            // Trata a data de nascimento
+            var dataNascimento = DateOnly.FromDateTime(Convert.ToDateTime(reader["nascimento"]));
+            
+            // Verifica a idade
+            var hoje = DateOnly.FromDateTime(DateTime.Today);
+            var idade = hoje.Year - dataNascimento.Year;
+            if (dataNascimento > hoje.AddYears(-idade)) idade--;
+
+            if (idade < 12)
+            {
+                throw new InvalidOperationException("A idade mínima para cadastro é 12 anos.");
             }
 
             var aluno = Aluno.Criar(
                 nome: reader["nome"].ToString()!,
                 cpf: reader["cpf"].ToString()!,
-                dataNascimento: DateOnly.FromDateTime(Convert.ToDateTime(reader["nascimento"])),
+                dataNascimento: dataNascimento,
                 telefone: reader["telefone"].ToString()!,
                 email: reader["email"] is DBNull ? string.Empty : reader["email"].ToString()!,
                 endereco: logradouro,
                 numero: reader["numero"].ToString()!,
-                complemento: reader["complemento"] is DBNull ? null : reader["complemento"].ToString(),
+                complemento: reader["complemento"] is DBNull ? string.Empty : reader["complemento"].ToString()!,
                 senha: reader["senha"].ToString()!,
                 foto: foto
             );
@@ -168,26 +208,10 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 DbType.String, _databaseType));
             command.Parameters.Add(DbProvider.CreateParameter("@Senha", entity.Senha, DbType.String, _databaseType));
             command.Parameters.Add(DbProvider.CreateParameter("@Foto",
-                (object?)entity.Foto?.Conteudo ?? DBNull.Value,
+                entity.Foto?.Conteudo != null ? (object)entity.Foto.Conteudo : DBNull.Value,
                 DbType.Binary, _databaseType));
-        }
 
-        public override async Task<IEnumerable<Aluno>> ObterTodos()
-        {
-            await using var connection = await GetOpenConnectionAsync();
-            string query = $@"SELECT id_aluno, nome, cpf, nascimento, email, telefone, 
-                             logradouro_id, numero, complemento, senha, foto
-                      FROM {TableName}";
-
-            await using var command = DbProvider.CreateCommand(query, connection);
-            using var reader = await command.ExecuteReaderAsync();
-
-            var alunos = new List<Aluno>();
-            while (await reader.ReadAsync())
-            {
-                alunos.Add(await MapAsync(reader));
-            }
-            return alunos;
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AddAlunoParameters - Foto presente: {entity.Foto?.Conteudo != null}");
         }
     }
 }

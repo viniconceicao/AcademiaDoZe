@@ -88,6 +88,6 @@ namespace AcademiaDoZe.Infrastructure.Tests
 
             var resultado = await repoLogradouroTodos.ObterTodos();
             Assert.NotNull(resultado);
-        }   
+        }
     }
 }
