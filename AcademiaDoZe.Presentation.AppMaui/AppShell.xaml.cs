@@ -22,5 +22,4 @@ namespace AcademiaDoZe.Presentation.AppMaui
     }
 }
 
-// Parei no slide 64
 

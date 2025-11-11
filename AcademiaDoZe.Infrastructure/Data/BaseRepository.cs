@@ -91,25 +91,27 @@ namespace AcademiaDoZe.Infrastructure.Data
             try
             {
                 await using var connection = await GetOpenConnectionAsync();
-                string query = $@"
-                    SELECT m.id_matricula, m.plano, m.data_inicio, m.data_fim, m.objetivo,
-                           m.restricao_medica, m.laudo_medico, m.obs_restricao,
-                           a.id_aluno, a.nome, a.cpf, a.nascimento, a.telefone, a.email,
-                           a.numero, a.complemento, a.senha, a.foto,
-                           l.id_logradouro, l.cep, l.nome AS logradouro, l.bairro, l.cidade, l.estado, l.pais
-                    FROM tb_matricula m
-                    INNER JOIN tb_aluno a ON a.id_aluno = m.aluno_id
-                    INNER JOIN tb_logradouro l ON l.id_logradouro = a.logradouro_id";
+                string query = $"SELECT * FROM {TableName}";
+                
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] BaseRepository.ObterTodos - Query: {query}");
+                
                 await using var command = DbProvider.CreateCommand(query, connection);
                 await using var reader = await command.ExecuteReaderAsync();
                 var entities = new List<TEntity>();
+                
                 while (await reader.ReadAsync())
                 {
                     entities.Add(await MapAsync(reader));
                 }
+                
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] BaseRepository.ObterTodos - Encontrados: {entities.Count}");
                 return entities;
             }
-            catch (DbException ex) { throw new InvalidOperationException($"ERRO_OBTER_DADOS_TODOS", ex); }
+            catch (DbException ex) 
+            { 
+                System.Diagnostics.Debug.WriteLine($"[ERROR] BaseRepository.ObterTodos - {ex.Message}");
+                throw new InvalidOperationException($"ERRO_OBTER_DADOS_TODOS", ex); 
+            }
         }
         public virtual async Task<bool> Remover(int id)
         {

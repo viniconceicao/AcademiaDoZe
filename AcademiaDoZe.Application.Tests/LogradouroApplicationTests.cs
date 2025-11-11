@@ -10,23 +10,23 @@ namespace AcademiaDoZe.Application.Tests
         // Configurações de conexão
         const string connectionString = "Server=localhost;Port=3306;Database=db_academia_do_ze;User Id=root;Password=admin;";
         const EAppDatabaseType databaseType = EAppDatabaseType.MySql;
+
+        private string GerarCepUnico()
+        {
+            // Gera um CEP numérico com exatamente 8 dígitos
+            return Random.Shared.Next(10_000_000, 99_999_999).ToString();
+        }
+
         [Fact(Timeout = 60000)]
         public async Task LogradouroService_Integracao_Adicionar_Obter_Atualizar_Remover()
         {
             // Arrange: DI usando repositório real (Infra)
-
-            // Configuração dos serviços usando a classe DependencyInjection
             var services = DependencyInjection.ConfigureServices(connectionString, databaseType);
-
-            // Cria o provedor de serviços
-
             var provider = DependencyInjection.BuildServiceProvider(services);
-            // Obtém os serviços necessários via injeção de dependência
-
             var logradouroService = provider.GetRequiredService<ILogradouroService>();
 
             // CEP único para o teste
-            var _cep = "99500001";
+            var _cep = GerarCepUnico();
 
             var dto = new LogradouroDTO
             {
@@ -37,22 +37,29 @@ namespace AcademiaDoZe.Application.Tests
                 Estado = "SP",
                 Pais = "Brasil"
             };
+            
             LogradouroDTO? criado = null;
             try
             {
+                // Limpeza preventiva
+                var existente = await logradouroService.ObterPorCepAsync(_cep);
+                if (existente != null)
+                {
+                    await logradouroService.RemoverAsync(existente.Id);
+                }
+
                 // Act - Adicionar
                 criado = await logradouroService.AdicionarAsync(dto);
                 Assert.NotNull(criado);
                 Assert.True(criado!.Id > 0);
+                
                 // Act - Obter por CEP
                 var obtido = await logradouroService.ObterPorCepAsync(_cep);
                 Assert.NotNull(obtido);
                 Assert.Equal("Rua Teste", obtido!.Nome);
 
                 // Act - Atualizar
-
                 var atualizarDto = new LogradouroDTO
-
                 {
                     Id = criado.Id,
                     Cep = criado.Cep,
@@ -69,19 +76,17 @@ namespace AcademiaDoZe.Application.Tests
                 Assert.Equal("RJ", atualizado.Estado);
 
                 // Act - Remover
-
                 var removido = await logradouroService.RemoverAsync(criado.Id);
                 Assert.True(removido);
+                
                 // Assert - Conferir remoção
                 var aposRemocao = await logradouroService.ObterPorIdAsync(criado.Id);
                 Assert.Null(aposRemocao);
-
             }
             finally
             {
                 // Clean-up defensivo (se algo falhar antes do remove)
                 if (criado is not null)
-
                 {
                     try { await logradouroService.RemoverAsync(criado.Id); } catch { }
                 }

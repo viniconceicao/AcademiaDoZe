@@ -2,6 +2,7 @@
 using AcademiaDoZe.Application.Interfaces;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+
 namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
 {
     public partial class LogradouroListViewModel : BaseViewModel
@@ -10,33 +11,49 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
         private readonly ILogradouroService _logradouroService;
         private string _searchText = string.Empty;
         public string SearchText { get => _searchText; set => SetProperty(ref _searchText, value); }
-        private string _selectedFilterType = "Cidade"; // Cidade, Id, Cep
+        
+        private string _selectedFilterType = "Cidade";
         public string SelectedFilterType
         {
-            get => _selectedFilterType; set => SetProperty(ref _selectedFilterType, value);
+            get => _selectedFilterType; 
+            set => SetProperty(ref _selectedFilterType, value);
         }
+        
         private ObservableCollection<LogradouroDTO> _logradouros = new();
-        public ObservableCollection<LogradouroDTO> Logradouros { get => _logradouros; set => SetProperty(ref _logradouros, value); }
+        public ObservableCollection<LogradouroDTO> Logradouros 
+        { 
+            get => _logradouros; 
+            set => SetProperty(ref _logradouros, value); 
+        }
+        
         private LogradouroDTO? _selectedLogradouro;
-        public LogradouroDTO? SelectedLogradouro { get => _selectedLogradouro; set => SetProperty(ref _selectedLogradouro, value); }
+        public LogradouroDTO? SelectedLogradouro 
+        { 
+            get => _selectedLogradouro; 
+            set => SetProperty(ref _selectedLogradouro, value); 
+        }
+
         public LogradouroListViewModel(ILogradouroService logradouroService)
         {
-            _logradouroService = logradouroService;
+            _logradouroService = logradouroService ?? throw new ArgumentNullException(nameof(logradouroService));
             Title = "Logradouros";
+            Logradouros = new ObservableCollection<LogradouroDTO>();
+            
+            System.Diagnostics.Debug.WriteLine("[DEBUG] LogradouroListViewModel - Construtor executado");
         }
+
         [RelayCommand]
         private async Task AddLogradouroAsync()
         {
             try
             {
-                // GoToAsync é usado para navegar entre páginas no MAUI Shell.
-                // logradouro é o nome da rota registrada no AppShell.xaml.cs
+                System.Diagnostics.Debug.WriteLine("[DEBUG] AddLogradouro - Navegando para nova tela");
                 await Shell.Current.GoToAsync("logradouro");
-
             }
             catch (Exception ex)
             {
-                await Shell.Current.DisplayAlert("Erro", $"Erro ao navegar para tela de cadastro: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] AddLogradouro - {ex.Message}");
+                await Shell.Current.DisplayAlert("Erro", $"Erro ao navegar: {ex.Message}", "OK");
             }
         }
 
@@ -47,11 +64,14 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
             {
                 if (logradouro == null)
                     return;
+                    
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] EditLogradouro - ID: {logradouro.Id}");
                 await Shell.Current.GoToAsync($"logradouro?Id={logradouro.Id}");
             }
             catch (Exception ex)
             {
-                await Shell.Current.DisplayAlert("Erro", $"Erro ao navegar para tela de edição: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] EditLogradouro - {ex.Message}");
+                await Shell.Current.DisplayAlert("Erro", $"Erro ao navegar: {ex.Message}", "OK");
             }
         }
 
@@ -61,21 +81,22 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
             IsRefreshing = true;
             await LoadLogradourosAsync();
         }
+
         [RelayCommand]
         private async Task SearchLogradourosAsync()
         {
             if (IsBusy)
                 return;
+                
             try
             {
                 IsBusy = true;
-                // Limpa a lista atual
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    Logradouros.Clear();
-                });
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SearchLogradouros - Filtro: {SelectedFilterType}, Texto: {SearchText}");
+                
+                await MainThread.InvokeOnMainThreadAsync(() => Logradouros.Clear());
+                
                 IEnumerable<LogradouroDTO> resultados = Enumerable.Empty<LogradouroDTO>();
-                // Busca os logradouros de acordo com o filtro
+                
                 if (string.IsNullOrWhiteSpace(SearchText))
                 {
                     resultados = await _logradouroService.ObterTodosAsync() ?? Enumerable.Empty<LogradouroDTO>();
@@ -87,20 +108,18 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
                 else if (SelectedFilterType == "Id" && int.TryParse(SearchText, out int id))
                 {
                     var logradouro = await _logradouroService.ObterPorIdAsync(id);
-
                     if (logradouro != null)
-
                         resultados = new[] { logradouro };
                 }
                 else if (SelectedFilterType == "Cep")
                 {
                     var logradouro = await _logradouroService.ObterPorCepAsync(SearchText);
-
                     if (logradouro != null)
-
                         resultados = new[] { logradouro };
                 }
-                // Atualiza a coleção na thread principal
+                
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SearchLogradouros - Encontrados: {resultados.Count()}");
+                
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     foreach (var item in resultados)
@@ -112,47 +131,58 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
             }
             catch (Exception ex)
             {
-                await Shell.Current.DisplayAlert("Erro", $"Erro ao buscar logradouros: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] SearchLogradouros - {ex.Message}");
+                await Shell.Current.DisplayAlert("Erro", $"Erro ao buscar: {ex.Message}", "OK");
             }
             finally
             {
                 IsBusy = false;
             }
         }
+
         [RelayCommand]
         private async Task LoadLogradourosAsync()
         {
             if (IsBusy)
                 return;
+                
             try
             {
                 IsBusy = true;
-                // Limpa a lista atual antes de carregar novos dados
-                await MainThread.InvokeOnMainThreadAsync(() =>
+                System.Diagnostics.Debug.WriteLine("[DEBUG] LoadLogradouros - Iniciando");
 
+                await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     Logradouros.Clear();
                     OnPropertyChanged(nameof(Logradouros));
                 });
+
                 var logradourosList = await _logradouroService.ObterTodosAsync();
-                if (logradourosList != null)
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] LoadLogradouros - Retornados: {logradourosList?.Count() ?? 0}");
+
+                if (logradourosList != null && logradourosList.Any())
                 {
-                    // Garantir que a atualização da UI aconteça na thread principal
-
                     await MainThread.InvokeOnMainThreadAsync(() =>
-
                     {
                         foreach (var logradouro in logradourosList)
                         {
+                            System.Diagnostics.Debug.WriteLine($"[DEBUG] Adicionando - ID: {logradouro.Id}, Nome: {logradouro.Nome}");
                             Logradouros.Add(logradouro);
                         }
                         OnPropertyChanged(nameof(Logradouros));
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG] Total na coleção: {Logradouros.Count}");
                     });
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[WARN] Nenhum logradouro retornado");
                 }
             }
             catch (Exception ex)
             {
-                await Shell.Current.DisplayAlert("Erro", $"Erro ao carregar logradouros: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] LoadLogradouros - {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                await Shell.Current.DisplayAlert("Erro", $"Erro ao carregar: {ex.Message}", "OK");
             }
             finally
             {
@@ -160,21 +190,26 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
                 IsRefreshing = false;
             }
         }
+
         [RelayCommand]
         private async Task DeleteLogradouroAsync(LogradouroDTO logradouro)
         {
             if (logradouro == null)
                 return;
+                
             bool confirm = await Shell.Current.DisplayAlert(
-            "Confirmar Exclusão",
-
-            $"Deseja realmente excluir o logradouro {logradouro.Nome}?",
-            "Sim", "Não");
+                "Confirmar Exclusão",
+                $"Deseja realmente excluir o logradouro {logradouro.Nome}?",
+                "Sim", "Não");
+                
             if (!confirm)
                 return;
+                
             try
             {
                 IsBusy = true;
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] DeleteLogradouro - ID: {logradouro.Id}");
+                
                 bool success = await _logradouroService.RemoverAsync(logradouro.Id);
                 if (success)
                 {
@@ -188,7 +223,8 @@ namespace AcademiaDoZe.Presentation.AppMaui.ViewModels
             }
             catch (Exception ex)
             {
-                await Shell.Current.DisplayAlert("Erro", $"Erro ao excluir logradouro: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] DeleteLogradouro - {ex.Message}");
+                await Shell.Current.DisplayAlert("Erro", $"Erro ao excluir: {ex.Message}", "OK");
             }
             finally
             {

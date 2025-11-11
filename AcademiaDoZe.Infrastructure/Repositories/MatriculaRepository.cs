@@ -265,5 +265,36 @@ namespace AcademiaDoZe.Infrastructure.Repositories
             }
             catch (DbException ex) { throw new InvalidOperationException($"ERRO_OBTER_MATRICULAS_VENCENDO_EM_{dias}_DIAS", ex); }
         }
+
+        public override async Task<IEnumerable<Matricula>> ObterTodos()
+        {
+            try
+            {
+                await using var connection = await GetOpenConnectionAsync();
+                string query = $@"
+                    SELECT m.id_matricula, m.plano, m.data_inicio, m.data_fim, m.objetivo,
+                           m.restricao_medica, m.laudo_medico, m.obs_restricao,
+                           a.id_aluno, a.nome, a.cpf, a.nascimento, a.telefone, a.email,
+                           a.numero, a.complemento, a.senha, a.foto,
+                           l.id_logradouro, l.cep, l.nome AS logradouro, l.bairro, l.cidade, l.estado, l.pais
+                    FROM tb_matricula m
+                    INNER JOIN tb_aluno a ON a.id_aluno = m.aluno_id
+                    INNER JOIN tb_logradouro l ON l.id_logradouro = a.logradouro_id";
+
+                await using var command = DbProvider.CreateCommand(query, connection);
+                await using var reader = await command.ExecuteReaderAsync();
+                var entities = new List<Matricula>();
+
+                while (await reader.ReadAsync())
+                {
+                    entities.Add(await MapAsync(reader));
+                }
+                return entities;
+            }
+            catch (DbException ex)
+            {
+                throw new InvalidOperationException($"ERRO_OBTER_MATRICULAS", ex);
+            }
+        }
     }
 }
