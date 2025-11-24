@@ -35,7 +35,7 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 var fotoBytes = (byte[])reader["foto"];
                 if (fotoBytes.Length > 0)
                 {
-                    foto = Arquivo.Criar(fotoBytes, "jpg");
+                    foto = Arquivo.Criar(fotoBytes, ".jpg");
                 }
             }
 
@@ -54,13 +54,13 @@ namespace AcademiaDoZe.Infrastructure.Repositories
 
             typeof(Entity).GetProperty("Id")?.SetValue(aluno, Convert.ToInt32(reader["id_aluno"]));
 
-            Arquivo? laudoMedico = null;
+            Arquivo? laudoMedico = null; 
             if (reader["laudo_medico"] != DBNull.Value)
             {
                 var bytes = (byte[])reader["laudo_medico"];
                 if (bytes.Length > 0)
                 {
-                    laudoMedico = Arquivo.Criar(bytes, "pdf");
+                    laudoMedico = Arquivo.Criar(bytes, ".pdf");
                 }
             }
 
@@ -80,11 +80,53 @@ namespace AcademiaDoZe.Infrastructure.Repositories
             return matricula;
         }
 
+        // ✅ SOBRESCREVER ObterPorId para incluir JOINs necessários
+        public override async Task<Matricula?> ObterPorId(int id)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("ID_NAO_INFORMADO_MENOR_UM", nameof(id));
+            }
+
+            try
+            {
+                await using var connection = await GetOpenConnectionAsync();
+                string query = $@"
+                    SELECT m.id_matricula, m.plano, m.data_inicio, m.data_fim, m.objetivo,
+                           m.restricao_medica, m.laudo_medico, m.obs_restricao,
+                           a.id_aluno, a.nome, a.cpf, a.nascimento, a.telefone, a.email,
+                           a.numero, a.complemento, a.senha, a.foto,
+                           l.id_logradouro, l.cep, l.nome AS logradouro, l.bairro, l.cidade, l.estado, l.pais
+                    FROM tb_matricula m
+                    INNER JOIN tb_aluno a ON a.id_aluno = m.aluno_id
+                    INNER JOIN tb_logradouro l ON l.id_logradouro = a.logradouro_id
+                    WHERE m.id_matricula = @Id";
+
+                await using var command = DbProvider.CreateCommand(query, connection);
+                command.Parameters.Add(DbProvider.CreateParameter("@Id", id, DbType.Int32, _databaseType));
+                
+                await using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return await MapAsync(reader);
+                }
+                return null;
+            }
+            catch (DbException ex)
+            {
+                throw new InvalidOperationException($"ERRO_OBTER_MATRICULA_ID_{id}", ex);
+            }
+        }
+
         public override async Task<Matricula> Adicionar(Matricula entity)
         {
             try
             {
                 await using var connection = await GetOpenConnectionAsync();
+                
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaRepository.Adicionar - Aluno.Id: {entity.AlunoMatricula.Id}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaRepository.Adicionar - Aluno.Nome: {entity.AlunoMatricula.Nome}");
+                
                 string query = _databaseType == DatabaseType.SqlServer
                     ? $"INSERT INTO {TableName} (aluno_id, plano, data_inicio, data_fim, objetivo, restricao_medica, laudo_medico, obs_restricao) " +
                       "OUTPUT INSERTED.id_matricula " +
@@ -101,7 +143,7 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 command.Parameters.Add(DbProvider.CreateParameter("@Objetivo", entity.Objetivo, DbType.String, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@RestricaoMedica", (int)entity.RestricoesMedicas, DbType.Int32, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@LaudoMedico", entity.LaudoMedico?.Conteudo ?? Array.Empty<byte>(), DbType.Binary, _databaseType));
-                command.Parameters.Add(DbProvider.CreateParameter("@ObsRestricao", entity.ObservacoesRestricoes, DbType.String, _databaseType));
+                command.Parameters.Add(DbProvider.CreateParameter("@ObsRestricao", entity.ObservacoesRestricoes ?? string.Empty, DbType.String, _databaseType));
 
                 var id = await command.ExecuteScalarAsync();
                 if (id != null && id != DBNull.Value)
@@ -110,7 +152,12 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 }
                 return entity;
             }
-            catch (DbException ex) { throw new InvalidOperationException($"ERRO_ADD_MATRICULA", ex); }
+            catch (DbException ex) 
+            { 
+                System.Diagnostics.Debug.WriteLine($"[ERROR] MatriculaRepository.Adicionar - {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                throw new InvalidOperationException($"ERRO_ADD_MATRICULA: {ex.Message}", ex); 
+            }
         }
 
         public override async Task<Matricula> Atualizar(Matricula entity)
@@ -138,7 +185,7 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 command.Parameters.Add(DbProvider.CreateParameter("@Objetivo", entity.Objetivo, DbType.String, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@RestricaoMedica", (int)entity.RestricoesMedicas, DbType.Int32, _databaseType));
                 command.Parameters.Add(DbProvider.CreateParameter("@LaudoMedico", entity.LaudoMedico?.Conteudo ?? Array.Empty<byte>(), DbType.Binary, _databaseType));
-                command.Parameters.Add(DbProvider.CreateParameter("@ObsRestricao", entity.ObservacoesRestricoes, DbType.String, _databaseType));
+                command.Parameters.Add(DbProvider.CreateParameter("@ObsRestricao", entity.ObservacoesRestricoes ?? string.Empty, DbType.String, _databaseType));
 
                 int rowsAffected = await command.ExecuteNonQueryAsync();
                 if (rowsAffected == 0)
@@ -147,7 +194,7 @@ namespace AcademiaDoZe.Infrastructure.Repositories
                 }
                 return entity;
             }
-            catch (DbException ex) { throw new InvalidOperationException($"ERRO_UPDATE_MATRICULA", ex); }
+            catch (DbException ex) { throw new InvalidOperationException($"ERRO_UPDATE_MATRICULA: {ex.Message}", ex); }
         }
 
         public async Task<IEnumerable<Matricula>> ObterPorAluno(int alunoId)

@@ -18,13 +18,26 @@ namespace AcademiaDoZe.Application.Mappings
                 Objetivo = matricula.Objetivo,
                 RestricoesMedicas = matricula.RestricoesMedicas.ToApp(),
                 ObservacoesRestricoes = matricula.ObservacoesRestricoes,
-                LaudoMedico = matricula.LaudoMedico != null ? new ArquivoDTO { Conteudo = matricula.LaudoMedico.Conteudo } : null, // Mapeia laudo para DTO
+                LaudoMedico = matricula.LaudoMedico != null ? new ArquivoDTO 
+                { 
+                    Conteudo = matricula.LaudoMedico.Conteudo,
+                    ContentType = ".pdf" 
+                } : null,
             };
         }
+        
         public static Matricula ToEntity(this MatriculaDTO matriculaDto)
         {
-            return Matricula.Criar(
-                matriculaDto.AlunoMatricula.ToEntityMatricula(), // Mapeia aluno do DTO para a entidade, resolvendo o caso da senha null
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.ToEntity - Início");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.ToEntity - MatriculaDTO.Id: {matriculaDto.Id}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.ToEntity - Aluno DTO ID: {matriculaDto.AlunoMatricula.Id}");
+            
+            var alunoEntity = matriculaDto.AlunoMatricula.ToEntityMatricula();
+            
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.ToEntity - Aluno Entity ID: {alunoEntity.Id}");
+            
+            var matricula = Matricula.Criar(
+                alunoEntity,
                 matriculaDto.Plano.ToDomain(),
                 matriculaDto.DataInicio,
                 matriculaDto.DataFim,
@@ -32,24 +45,46 @@ namespace AcademiaDoZe.Application.Mappings
                 matriculaDto.RestricoesMedicas.ToDomain(),
                 (matriculaDto.LaudoMedico?.Conteudo != null && matriculaDto.LaudoMedico?.ContentType != null)
                     ? Arquivo.Criar(matriculaDto.LaudoMedico.Conteudo, matriculaDto.LaudoMedico.ContentType)
-                    : null, // Mapeia laudo do DTO para a entidade
-                matriculaDto.ObservacoesRestricoes!
+                    : null,
+                matriculaDto.ObservacoesRestricoes ?? string.Empty
             );
+            
+            // ✅ IMPORTANTE: Preserva o ID do DTO na entidade criada
+            if (matriculaDto.Id > 0)
+            if (matriculaDto.Id > 0)
+            {
+                typeof(Entity).GetProperty("Id")?.SetValue(matricula, matriculaDto.Id);
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.ToEntity - ID preservado: {matricula.Id}");
+            }
+            
+            return matricula;
         }
-        public static Matricula UpdateFromDto(this Matricula matricula, MatriculaDTO matriculaDto)
+        
+        public static Matricula UpdateFromDto(this Matricula matriculaExistente, MatriculaDTO matriculaDto)
         {
-            return Matricula.Criar(
-                matriculaDto.AlunoMatricula.ToEntityMatricula() ?? matricula.AlunoMatricula,
-                matriculaDto.Plano != default ? matriculaDto.Plano.ToDomain() : matricula.Plano,
-                matriculaDto.DataInicio != default ? matriculaDto.DataInicio : matricula.DataInicio,
-                matriculaDto.DataFim != default ? matriculaDto.DataFim : matricula.DataFim,
-                matriculaDto.Objetivo ?? matricula.Objetivo,
-                matriculaDto.RestricoesMedicas != default ? matriculaDto.RestricoesMedicas.ToDomain() : matricula.RestricoesMedicas,
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.UpdateFromDto - Início");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.UpdateFromDto - MatriculaExistente.Id: {matriculaExistente.Id}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.UpdateFromDto - MatriculaDTO.Id: {matriculaDto.Id}");
+            
+            var matriculaAtualizada = Matricula.Criar(
+                matriculaDto.AlunoMatricula.ToEntityMatricula() ?? matriculaExistente.AlunoMatricula,
+                matriculaDto.Plano != default ? matriculaDto.Plano.ToDomain() : matriculaExistente.Plano,
+                matriculaDto.DataInicio != default ? matriculaDto.DataInicio : matriculaExistente.DataInicio,
+                matriculaDto.DataFim != default ? matriculaDto.DataFim : matriculaExistente.DataFim,
+                matriculaDto.Objetivo ?? matriculaExistente.Objetivo,
+                matriculaDto.RestricoesMedicas != default ? matriculaDto.RestricoesMedicas.ToDomain() : matriculaExistente.RestricoesMedicas,
                 (matriculaDto.LaudoMedico?.Conteudo != null && matriculaDto.LaudoMedico?.ContentType != null)
                     ? Arquivo.Criar(matriculaDto.LaudoMedico.Conteudo, matriculaDto.LaudoMedico.ContentType)
-                    : matricula.LaudoMedico, // Atualiza laudo se fornecido
-                matriculaDto.ObservacoesRestricoes ?? matricula.ObservacoesRestricoes
+                    : matriculaExistente.LaudoMedico,
+                matriculaDto.ObservacoesRestricoes ?? matriculaExistente.ObservacoesRestricoes
             );
+            
+            // ✅ CRÍTICO: Preserva o ID da matrícula existente
+            typeof(Entity).GetProperty("Id")?.SetValue(matriculaAtualizada, matriculaExistente.Id);
+            
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] MatriculaMappings.UpdateFromDto - ID preservado: {matriculaAtualizada.Id}");
+            
+            return matriculaAtualizada;
         }
     }
 }

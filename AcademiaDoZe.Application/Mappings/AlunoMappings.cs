@@ -23,10 +23,11 @@ namespace AcademiaDoZe.Application.Mappings
                 Foto = aluno.Foto != null ? new ArquivoDTO 
                 { 
                     Conteudo = aluno.Foto.Conteudo,
-                    ContentType = ".jpg"  // Adiciona o ContentType padrão
+                    ContentType = ".jpg"
                 } : null
             };
         }
+        
         public static Aluno ToEntity(this AlunoDTO alunoDto)
         {
             return Aluno.Criar(
@@ -47,16 +48,16 @@ namespace AcademiaDoZe.Application.Mappings
                     : null!
             );
         }
-        /*
-        * A camada de aplicação não expõe a senha do Aluno na DTO, ao tentar usar essas entidades, por exemplo, na matricula, pode ocorrer erro de validação/normalização do domínio, quando a DTO for mapeada para a entidade.
-        * Ou seja, ao tentar salvar uma nova matricula, a DTO do Aluno vai ser mapeada para a entidade Aluno para poder ser enviada a camada de Infraestrutura, porém, como na DTO a senha do Aluno foi definida como null, ao
-        realizar o mapeamento, a validação de domínio da entidade falha, pois a senha é uma campo obrigatório.
-        * A prática mais robusta para resolver isso, é criar um DTO ou Mapeamento específico para o caso de uso.
-        * O mapeamento ToEntityMatricula() será utilizado exclusivamente na Matricula, e mascara a senha, passando desta forma pela validação.
-        */
+        
         public static Aluno ToEntityMatricula(this AlunoDTO alunoDto)
         {
-            return Aluno.Criar(
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AlunoMappings.ToEntityMatricula - Início");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AlunoMappings.ToEntityMatricula - AlunoDTO.Id: {alunoDto.Id}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AlunoMappings.ToEntityMatricula - AlunoDTO.Nome: {alunoDto.Nome}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AlunoMappings.ToEntityMatricula - AlunoDTO.CPF: {alunoDto.Cpf}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AlunoMappings.ToEntityMatricula - AlunoDTO.Endereco.Id: {alunoDto.Endereco?.Id}");
+            
+            var aluno = Aluno.Criar(
                 alunoDto.Nome,
                 alunoDto.Cpf,
                 alunoDto.DataNascimento,
@@ -70,17 +71,24 @@ namespace AcademiaDoZe.Application.Mappings
                     ? Arquivo.Criar(alunoDto.Foto.Conteudo, alunoDto.Foto.ContentType)
                     : null!
             );
+            
+            // IMPORTANTE: Preserva o ID do DTO na entidade
+            typeof(Entity).GetProperty("Id")?.SetValue(aluno, alunoDto.Id);
+            
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] AlunoMappings.ToEntityMatricula - Aluno.Id após SetValue: {aluno.Id}");
+            
+            return aluno;
         }
+        
         public static Aluno UpdateFromDto(this Aluno aluno, AlunoDTO alunoDto)
         {
-            // Se tiver uma nova foto, usa ela, senão mantém a atual
             var novaFoto = alunoDto.Foto?.Conteudo != null
                 ? Arquivo.Criar(alunoDto.Foto.Conteudo, alunoDto.Foto.ContentType ?? ".jpg")
                 : aluno.Foto;
 
             var updated = Aluno.Criar(
                 alunoDto.Nome ?? aluno.Nome,
-                aluno.Cpf, // CPF não pode ser alterado
+                aluno.Cpf,
                 alunoDto.DataNascimento != default ? alunoDto.DataNascimento : aluno.DataNascimento,
                 alunoDto.Telefone ?? aluno.Telefone,
                 alunoDto.Email ?? aluno.Email,
@@ -91,7 +99,6 @@ namespace AcademiaDoZe.Application.Mappings
                 novaFoto
             );
 
-            // Mantém o ID original usando reflection
             var idProperty = typeof(Entity).GetProperty("Id");
             idProperty?.SetValue(updated, aluno.Id);
 

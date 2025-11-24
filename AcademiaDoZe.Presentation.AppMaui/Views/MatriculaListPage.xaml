@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AcademiaDoZe.Presentation.AppMaui.Views.MatriculaListPage"
+             xmlns:vm="clr-namespace:AcademiaDoZe.Presentation.AppMaui.ViewModels"
+             xmlns:dto="clr-namespace:AcademiaDoZe.Application.DTOs;assembly=AcademiaDoZe.Application"
+             xmlns:converters="clr-namespace:AcademiaDoZe.Presentation.AppMaui.Converters"
+             x:DataType="vm:MatriculaListViewModel"
+             Title="{Binding Title}">
+
+    <ContentPage.Resources>
+        <converters:FotoToImageSourceConverter x:Key="FotoConverter"/>
+        <converters:RestricoesMedicasListConverter x:Key="RestricoesMedicasListConverter"/>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Search Bar -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Margin="15,10">
+            <Grid ColumnDefinitions="Auto,10,*,10,Auto" VerticalOptions="Center">
+                <Picker Grid.Column="0"
+                        Title=""
+                        ItemsSource="{Binding FilterTypes}"
+                        SelectedItem="{Binding SelectedFilterType}"
+                        WidthRequest="110"
+                        HorizontalOptions="Start"
+                        HeightRequest="40"
+                        VerticalOptions="Center"/>
+                
+                <Entry Grid.Column="2"
+                       Text="{Binding SearchText}"
+                       Placeholder="Digite o valor..."
+                       HeightRequest="40"
+                       VerticalOptions="Center"/>
+                
+                <Button Grid.Column="4"
+                        Text=""
+                        Style="{StaticResource ButtonPrimary}"
+                        FontSize="14"
+                        WidthRequest="80"
+                        HeightRequest="40"
+                        Command="{Binding FilterMatriculasCommand}">
+                    <Button.ImageSource>
+                        <FontImageSource FontFamily="MaterialIcons" 
+                                       Glyph="&#xe8b6;" 
+                                       Color="White"/>
+                    </Button.ImageSource>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Lista de Matrículas -->
+        <Grid Grid.Row="1">
+            <RefreshView IsRefreshing="{Binding IsRefreshing}"
+                         Command="{Binding RefreshCommand}">
+                <CollectionView ItemsSource="{Binding Matriculas}"
+                              SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <StackLayout Padding="20" VerticalOptions="Center">
+                            <Label Text="&#xe8d2;"
+                                   FontFamily="MaterialIcons"
+                                   FontSize="48"
+                                   HorizontalOptions="Center"
+                                   TextColor="{StaticResource Gray300}"/>
+                            <Label Text="Nenhuma matrícula encontrada"
+                                   HorizontalOptions="Center"
+                                   Style="{StaticResource SubHeadline}"
+                                   TextColor="{StaticResource Gray300}"
+                                   Margin="0,10,0,0"/>
+                            <Button Text="Adicionar Primeira Matrícula"
+                                    Command="{Binding AddMatriculaCommand}"
+                                    Style="{StaticResource ButtonPrimary}"
+                                    HeightRequest="50"
+                                    Margin="0,20,0,0"/>
+                        </StackLayout>
+                    </CollectionView.EmptyView>
+
+                    <CollectionView.ItemTemplate>
+    <DataTemplate x:DataType="dto:MatriculaDTO">
+        <SwipeView>
+
+            <SwipeView.RightItems>
+                <SwipeItems>
+                    <SwipeItem Text="Excluir"
+                             BackgroundColor="Red"
+                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MatriculaListViewModel}}, Path=DeleteMatriculaCommand}"
+                             CommandParameter="{Binding .}">
+                        <SwipeItem.IconImageSource>
+                            <FontImageSource FontFamily="MaterialIcons" 
+                                           Glyph="&#xe872;" 
+                                           Color="White"/>
+                        </SwipeItem.IconImageSource>
+                    </SwipeItem>
+                </SwipeItems>
+            </SwipeView.RightItems>
+
+            <Border Style="{StaticResource CardBorder}" Margin="15,5">
+                <StackLayout Padding="15" Spacing="10">
+                    
+
+                    <Grid ColumnDefinitions="60,*,Auto" ColumnSpacing="15">
+                        
+                        <!-- Foto do Aluno -->
+                        <Border Grid.Column="0"
+                                WidthRequest="60"
+                                HeightRequest="60"
+                                StrokeThickness="2"
+                                Stroke="{StaticResource Primary}"
+                                StrokeShape="RoundRectangle 30"
+                                VerticalOptions="Start">
+                            <Border.Background>
+                                <SolidColorBrush Color="{AppThemeBinding Light=#F0F0F0, Dark=#2C2C2C}"/>
+                            </Border.Background>
+                            <Image Source="{Binding AlunoMatricula.Foto, Converter={StaticResource FotoConverter}}"
+                                   Aspect="AspectFill"/>
+                        </Border>
+
+                        <!-- Dados do Aluno -->
+                        <StackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                            <Label Text="{Binding AlunoMatricula.Nome}"
+                                   Style="{StaticResource BodyLarge}"
+                                   FontAttributes="Bold"
+                                   LineBreakMode="TailTruncation"
+                                   MaxLines="1"/>
+
+                            <HorizontalStackLayout Spacing="5">
+                                <Label Text="&#xe8d3;" 
+                                       FontFamily="MaterialIcons" 
+                                       FontSize="14"
+                                       TextColor="{StaticResource Primary}"/>
+                                <Label Text="{Binding AlunoMatricula.Cpf}"
+                                       Style="{StaticResource BodySmall}"
+                                       TextColor="White"/>
+                            </HorizontalStackLayout>
+
+                            <HorizontalStackLayout Spacing="5">
+                                <Label Text="&#xe0b0;" 
+                                       FontFamily="MaterialIcons" 
+                                       FontSize="14"
+                                       TextColor="{StaticResource Primary}"/>
+                                <Label Text="{Binding AlunoMatricula.Telefone}"
+                                       Style="{StaticResource BodySmall}"
+                                       TextColor="White"/>
+                            </HorizontalStackLayout>
+                        </StackLayout>
+
+
+                        <VerticalStackLayout Grid.Column="2" Spacing="3" VerticalOptions="Center">
+                            <!-- ✅ ID DA MATRÍCULA -->
+                            <Label Text="{Binding Id, StringFormat='#{0}'}"
+                                   Style="{StaticResource BodySmall}"
+                                   TextColor="White"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"/>
+                            
+                            <!-- ✅ BOTÕES NA HORIZONTAL -->
+                            <HorizontalStackLayout Spacing="5" HorizontalOptions="Center">
+                                <!-- Botão Editar -->
+                                <Button Text="&#xe3c9;"
+                                        FontFamily="MaterialIcons"
+                                        FontSize="18"
+                                        WidthRequest="35"
+                                        HeightRequest="35"
+                                        Padding="0"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        TextColor="White"
+                                        CornerRadius="18"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MatriculaListViewModel}}, Path=EditMatriculaCommand}"
+                                        CommandParameter="{Binding .}"/>
+                                
+                                <!-- Botão Deletar -->
+                                <Button Text="&#xe872;"
+                                        FontFamily="MaterialIcons"
+                                        FontSize="18"
+                                        WidthRequest="35"
+                                        HeightRequest="35"
+                                        Padding="0"
+                                        BackgroundColor="Red"
+                                        TextColor="White"
+                                        CornerRadius="18"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MatriculaListViewModel}}, Path=DeleteMatriculaCommand}"
+                                        CommandParameter="{Binding .}"/>
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- Restante do layout (Plano, Datas, Restrições) -->
+                    <StackLayout Spacing="4">
+                        <HorizontalStackLayout Spacing="5">
+                            <Label Text="&#xe8d2;"
+                                   FontFamily="MaterialIcons"
+                                   FontSize="14"
+                                   TextColor="{StaticResource Primary}"/>
+                            <Label Text="Plano:"
+                                   Style="{StaticResource BodySmall}"
+                                   FontAttributes="Bold"
+                                   TextColor="White"/>
+                            <Label Text="{Binding Plano}"
+                                   Style="{StaticResource BodySmall}"
+                                   TextColor="White"/>
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Spacing="5">
+                            <Label Text="&#xe8df;"
+                                   FontFamily="MaterialIcons"
+                                   FontSize="14"
+                                   TextColor="{StaticResource Primary}"/>
+                            <Label Text="Período:"
+                                   Style="{StaticResource BodySmall}"
+                                   FontAttributes="Bold"
+                                   TextColor="White"/>
+                            <Label Style="{StaticResource BodySmall}"
+                                   TextColor="{StaticResource Gray600}">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding DataInicio, StringFormat='{0:dd/MM/yy}'}"/>
+                                        <Span Text=" até "/>
+                                        <Span Text="{Binding DataFim, StringFormat='{0:dd/MM/yy}'}"/>
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+                        </HorizontalStackLayout>
+                    </StackLayout>
+
+                    <!-- Restrições e Laudo -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Grid.Triggers>
+                            <DataTrigger TargetType="Grid"
+                                        Binding="{Binding RestricoesMedicas}"
+                                        Value="None">
+                                <Setter Property="IsVisible" Value="False"/>
+                            </DataTrigger>
+                        </Grid.Triggers>
+
+                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                            <HorizontalStackLayout Spacing="5">
+                                <Label Text="&#xe645;"
+                                       FontFamily="MaterialIcons"
+                                       FontSize="14"
+                                       TextColor="Red"/>
+                                <Label Text="Restrições Médicas:"
+                                       Style="{StaticResource BodySmall}"
+                                       TextColor="Red"
+                                       FontAttributes="Bold"/>
+                            </HorizontalStackLayout>
+                            
+                            <CollectionView ItemsSource="{Binding RestricoesMedicas, Converter={StaticResource RestricoesMedicasListConverter}}"
+                                          SelectionMode="None"
+                                          Margin="19,0,0,0">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Label Text="{Binding .}"
+                                               Style="{StaticResource BodySmall}"
+                                               FontSize="13"
+                                               TextColor="Red"
+                                               Margin="0,1"/>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                            
+                            <StackLayout Spacing="2" Margin="19,4,0,0">
+                                <StackLayout.Triggers>
+                                    <DataTrigger TargetType="StackLayout"
+                                                Binding="{Binding ObservacoesRestricoes}"
+                                                Value="">
+                                        <Setter Property="IsVisible" Value="False"/>
+                                    </DataTrigger>
+                                    <DataTrigger TargetType="StackLayout"
+                                                Binding="{Binding ObservacoesRestricoes}"
+                                                Value="{x:Null}">
+                                        <Setter Property="IsVisible" Value="False"/>
+                                    </DataTrigger>
+                                </StackLayout.Triggers>
+                                
+                                <Label Text="Observações:"
+                                       Style="{StaticResource BodySmall}"
+                                       FontSize="13"
+                                       TextColor="{StaticResource Gray500}"
+                                       FontAttributes="Italic"
+                                       Margin="0,2,0,0"/>
+                                
+                                <Label Text="{Binding ObservacoesRestricoes}"
+                                       Style="{StaticResource BodySmall}"
+                                       FontSize="13"
+                                       TextColor="White"
+                                       LineBreakMode="TailTruncation"
+                                       MaxLines="2"/>
+                            </StackLayout>
+                        </VerticalStackLayout>
+                        
+                        <Border Grid.Column="1"
+                                WidthRequest="120"
+                                HeightRequest="120"
+                                StrokeThickness="1"
+                                Stroke="{StaticResource Gray300}"
+                                StrokeShape="RoundRectangle 5"
+                                VerticalOptions="Start">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border"
+                                            Binding="{Binding LaudoMedico}"
+                                            Value="{x:Null}">
+                                    <Setter Property="IsVisible" Value="False"/>
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Border.Background>
+                                <SolidColorBrush Color="{AppThemeBinding Light=#F0F0F0, Dark=#2C2C2C}"/>
+                            </Border.Background>
+                            <Image Source="{Binding LaudoMedico, Converter={StaticResource FotoConverter}}"
+                                   Aspect="AspectFill"/>
+                        </Border>
+                    </Grid>
+                </StackLayout>
+            </Border>
+        </SwipeView>
+    </DataTemplate>
+</CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+
+            <!-- FAB -->
+            <Button Text=""
+                    Command="{Binding AddMatriculaCommand}"
+                    Style="{StaticResource ButtonPrimary}"
+                    WidthRequest="56"
+                    HeightRequest="56"
+                    HorizontalOptions="End"
+                    VerticalOptions="End"
+                    Margin="20">
+                <Button.Shadow>
+                    <Shadow Brush="{AppThemeBinding Light=Black, Dark=Gray}" 
+                            Offset="0,4" 
+                            Radius="8" 
+                            Opacity="0.3"/>
+                </Button.Shadow>
+                <Button.ImageSource>
+                    <FontImageSource FontFamily="MaterialIcons" 
+                                   Glyph="&#xe145;" 
+                                   Color="White"/>
+                </Button.ImageSource>
+            </Button>
+        </Grid>
+
+        <!-- Loading -->
+        <ActivityIndicator Grid.RowSpan="2"
+                          IsVisible="{Binding IsBusy}"
+                          IsRunning="{Binding IsBusy}"
+                          Color="{StaticResource Primary}"
+                          VerticalOptions="Center"
+                          HorizontalOptions="Center"/>
+    </Grid>
+</ContentPage>
